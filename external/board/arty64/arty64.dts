@@ -1,0 +1,99 @@
+/dts-v1/;
+
+/*
+ * Digilent Arty A7-100T with CVA6 cv64a6_imac_sv39.
+ * RV32IMA+C, SV32, 256 MB DDR3, 25 MHz core clock.
+ */
+
+/ {
+  #address-cells = <2>;
+  #size-cells = <2>;
+  compatible = "openhwgroup,cva6-arty-a7", "eth,ariane-bare-dev";
+  model = "Digilent Arty A7-100T (CVA6 rv64imac)";
+
+  chosen {
+    stdout-path = "serial0:57600n8";
+    bootargs = "console=ttyS0,57600 earlycon";
+  };
+
+  aliases {
+    serial0 = &uart0;
+    ethernet0 = &eth;
+  };
+
+  cpus {
+    #address-cells = <1>;
+    #size-cells = <0>;
+    timebase-frequency = <12500000>;
+
+    cpu0: cpu@0 {
+      clock-frequency = <25000000>;
+      device_type = "cpu";
+      reg = <0>;
+      status = "okay";
+      compatible = "eth,ariane", "riscv";
+      riscv,isa = "rv64imac";
+      mmu-type = "riscv,sv39";
+      tlb-split;
+
+      cpu0_intc: interrupt-controller {
+        #interrupt-cells = <1>;
+        interrupt-controller;
+        compatible = "riscv,cpu-intc";
+      };
+    };
+  };
+
+  memory@80000000 {
+    device_type = "memory";
+    reg = <0x0 0x80000000 0x0 0x10000000>;   /* 256 MB */
+  };
+
+  soc {
+    #address-cells = <2>;
+    #size-cells = <2>;
+    compatible = "simple-bus";
+    ranges;
+
+    clint@2000000 {
+      compatible = "riscv,clint0";
+      interrupts-extended = <&cpu0_intc 3 &cpu0_intc 7>;
+      reg = <0x0 0x2000000 0x0 0xc0000>;
+      reg-names = "control";
+    };
+
+    PLIC0: interrupt-controller@c000000 {
+      #address-cells = <0>;
+      #interrupt-cells = <1>;
+      compatible = "riscv,plic0";
+      interrupt-controller;
+      interrupts-extended = <&cpu0_intc 11 &cpu0_intc 9>;
+      reg = <0x0 0xc000000 0x0 0x4000000>;
+      riscv,max-priority = <7>;
+      riscv,ndev = <30>;
+    };
+
+    uart0: serial@10000000 {
+      compatible = "ns16550a";
+      reg = <0x0 0x10000000 0x0 0x1000>;
+      clock-frequency = <25000000>;
+      current-speed = <57600>;
+      reg-shift = <2>;
+      reg-io-width = <4>;
+      interrupt-parent = <&PLIC0>;
+      interrupts = <1>;
+    };
+
+    /* lowRISC 100 MHz Ethernet MAC (0x30000000).
+     * Currently not instantiated in the Arty bitstream; the driver is built
+     * as a module and is only loaded once the MAC is present. */
+    eth: ethernet@30000000 {
+      compatible = "lowrisc-eth";
+      device_type = "network";
+      reg = <0x0 0x30000000 0x0 0x8000>;
+      interrupt-parent = <&PLIC0>;
+      interrupts = <3 0>;
+      local-mac-address = [02 00 00 00 00 01];
+    };
+  };
+};

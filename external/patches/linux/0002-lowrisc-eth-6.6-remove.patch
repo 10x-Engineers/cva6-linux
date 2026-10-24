@@ -1,0 +1,15 @@
+From: Arty32 build
+Subject: [PATCH] lowrisc-eth: platform_driver.remove returns int on 6.6
+
+The cva6-sdk driver targets a newer kernel where .remove returns void.
+This tree is Linux 6.6, where .remove still returns int.
+
+--- a/drivers/net/ethernet/lowrisc/lowrisc_100MHz.c
++++ b/drivers/net/ethernet/lowrisc/lowrisc_100MHz.c
+@@ -882,4 +882,5 @@
+-static void lowrisc_100MHz_unregister(struct platform_device *of_dev)
++static int lowrisc_100MHz_unregister(struct platform_device *of_dev)
+ {
+ 	lowrisc_100MHz_free(of_dev);
++	return 0;
+ }

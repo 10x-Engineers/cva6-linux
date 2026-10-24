@@ -1,0 +1,1 @@
+# No external Buildroot packages; configuration is in configs/arty32_defconfig.

@@ -1,0 +1,12 @@
+# Buildroot / OpenSBI build trees, downloads and outputs
+buildroot/
+opensbi/
+br-out*/
+opensbi-out*/
+out/
+logs/
+dl/
+
+# editor / OS noise
+.DS_Store
+*.swp
