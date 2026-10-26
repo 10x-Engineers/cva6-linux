@@ -11,7 +11,8 @@ Digilent Arty A7-100T (xc7a100tcsg324-1), CVA6 FPGA SoC.
 | DRAM | 256 MiB at `0x80000000` (MIG DDR3) |
 | UART | 8250-compatible at `0x10000000`, **57600 8N1**, `/dev/ttyUSB5` |
 | CLINT / PLIC | `0x02000000` / `0x0c000000` |
-| Ethernet PHY | on-board 10/100 PHY; MAC currently disabled in the bitstream |
+| Ethernet | lowRISC MAC (`framing_top_mii`) at `0x30000000` (PLIC 3), TI DP83848J 10/100 MII PHY at MDIO address 1 |
+| GPIO | Xilinx AXI GPIO at `0x40000000`: LD4–LD7 and SW0–SW3 |
 | Debug | BSCANE2 USER1 TAP (riscv-dbg), IDCODE `0x13631093` |
 
 ## Supported bitstreams
@@ -49,6 +50,9 @@ followed by the raw payload, written to `0x80000000`, then `jr 0x80000000`.
 | `external/configs/arty64_defconfig` | rv64imac / lp64 / glibc |
 | `external/board/arty{32,64}/linux.fragment` | kernel options (FPU off, 8250, no DRM, …) |
 | `external/board/arty{32,64}/post-build.sh` | keep only `lowrisc_100MHz.ko` |
+| `external/board/common/rootfs-overlay/` | `S41ethernet` (eth0, route, DNS, NTP), `S50httpd` + `/srv/www` (LED page) |
+| `external/board/busybox.fragment` | BusyBox `ntpd`, `httpd` + CGI |
+| `external/package/arty-led-cgi/` | the LED page's CGI (C) |
 
 ## Known limitations
 
@@ -56,8 +60,8 @@ followed by the raw payload, written to `0x80000000`, then `jr 0x80000000`.
   load, or flash the matching `.mcs` first. Verify `hart.xlen` before uploading.
 - The 32-bit DM's abstract commands can wedge (`abstractcs=...1002`); reset the
   DM (`riscv dmi_write 0x10 0x0` then `0x1`) and use SBA memory access.
-- Ethernet needs a future bitstream with the MAC/pins; the driver is built as a
-  module and is not loaded by default.
+- Ethernet: see [../networking.md](../networking.md) for the boot-time
+  settings, the CoreChips SR9900 dongle problem at 100 Mb/s and throughput.
 
 ## Flashing
 
