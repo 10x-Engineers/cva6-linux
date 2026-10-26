@@ -19,6 +19,12 @@ BR_OUT="$ROOT/br-out$XLEN"
 OSBI_OUT="$ROOT/opensbi-out$XLEN"
 TOOLCHAIN_PREFIX="$BR_OUT/host/bin/riscv${XLEN}-buildroot-linux-gnu-"
 DEFCONFIG="arty${XLEN}_defconfig"
+if [ "$XLEN" = 32 ]; then
+  # Sv32 has 4 MiB PMDs; the kernel's setup_vm BUG_ON()s on a non-4MiB base.
+  PAYLOAD_OFFSET=0x400000
+else
+  PAYLOAD_OFFSET=0x200000
+fi
 
 mkdir -p "$ROOT/out" "$ROOT/logs"
 
@@ -52,7 +58,7 @@ make -C "$OSBI" O="$OSBI_OUT" \
      CROSS_COMPILE="$TOOLCHAIN_PREFIX" \
      PLATFORM=generic \
      FW_TEXT_START=0x80000000 \
-     FW_PAYLOAD_OFFSET=0x200000 \
+     FW_PAYLOAD_OFFSET=$PAYLOAD_OFFSET \
      FW_PAYLOAD_PATH="$BR_OUT/images/Image" \
      FW_FDT_PATH="$BR_OUT/images/arty${XLEN}.dtb" \
      2>&1 | tee "$ROOT/logs/opensbi-build-$XLEN.log"
