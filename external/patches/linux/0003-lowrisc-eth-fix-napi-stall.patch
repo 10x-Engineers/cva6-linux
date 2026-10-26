@@ -1,0 +1,53 @@
+From: Bilal Ali <bilalali@silverlining.com>
+Subject: [PATCH] lowrisc-eth: fix NAPI poll stalling with the rx irq masked
+
+When a poll used its whole budget the driver returned 1 without completing
+NAPI, so the core stopped polling while the rx irq stayed masked and all
+8 rx buffers stayed full: receive stopped for good under load. Return the
+budget instead, and only unmask after napi_complete_done() succeeds.
+
+The isr overload path also acked buffers starting from index 0 (rsr was
+never read), corrupting firstbuf; just mask and let the poll drain.
+
+--- a/drivers/net/ethernet/lowrisc/lowrisc_100MHz.c
++++ b/drivers/net/ethernet/lowrisc/lowrisc_100MHz.c
+@@ -499,30 +499,22 @@
+ 		rsr = eth_read(priv, RSR_OFFSET);
+ 	}
+ 
+-	if (rsr & RSR_RECV_DONE_MASK) {
+-		return 1;
+-	} else {
+-		napi_complete_done(&priv->napi, rx_count);
++	/* Budget used up: stay scheduled, NAPI polls again with the irq off. */
++	if (rx_count >= budget)
++		return budget;
++	if (napi_complete_done(&priv->napi, rx_count))
+ 		eth_enable_irq(priv);
+-		return 0;
+-	}
++	return rx_count;
+ }
+ 
+ static irqreturn_t lowrisc_ether_isr(int irq, void *priv_id)
+ {
+-	int rsr = 0;
+ 	struct net_local *priv = priv_id;
+-	struct net_device *ndev = priv->ndev;
+-	if (napi_schedule_prep(&priv->napi)) {
+-		eth_disable_irq(priv);
++	/* Mask the level-triggered rx irq; the NAPI poll (already running or
++	 * scheduled here) drains the buffers and unmasks it when done. */
++	eth_disable_irq(priv);
++	if (napi_schedule_prep(&priv->napi))
+ 		__napi_schedule(&priv->napi);
+-	} else /* we are in denial of service mode */
+-		do {
+-			int buf = rsr & RSR_RECV_FIRST_MASK;
+-			ndev->stats.rx_dropped++;
+-			eth_write(priv, RSR_OFFSET, ++buf);
+-			rsr = eth_read(priv, RSR_OFFSET);
+-		} while (rsr & RSR_RECV_DONE_MASK);
+ 	return IRQ_HANDLED;
+ }
+ 
