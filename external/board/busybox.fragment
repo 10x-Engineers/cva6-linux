@@ -1,2 +1,8 @@
 # ntpd sets the real time at boot (no RTC on the board).
 CONFIG_NTPD=y
+# httpd + CGI serve the LED/switch web page (rootfs-overlay/srv/www).
+CONFIG_HTTPD=y
+CONFIG_FEATURE_HTTPD_CGI=y
+# busybox 1.36.1 bug: with CGI on, "/" drops index.html (404) unless BASIC_AUTH
+# is built in, which restores it. No httpd.conf, so nothing asks for a password.
+CONFIG_FEATURE_HTTPD_BASIC_AUTH=y

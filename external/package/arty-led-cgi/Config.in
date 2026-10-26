@@ -1,0 +1,5 @@
+config BR2_PACKAGE_ARTY_LED_CGI
+	bool "arty-led-cgi"
+	help
+	  CGI for the LED/switch web page: drives the Arty LEDs and
+	  reads the switches through the AXI GPIO at 0x40000000.

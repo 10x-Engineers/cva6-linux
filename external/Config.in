@@ -1,1 +1,1 @@
-# No external Buildroot packages; configuration is in configs/arty32_defconfig.
+source "$BR2_EXTERNAL_ARTY_PATH/package/arty-led-cgi/Config.in"
