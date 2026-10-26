@@ -1,0 +1,2 @@
+# ntpd sets the real time at boot (no RTC on the board).
+CONFIG_NTPD=y
