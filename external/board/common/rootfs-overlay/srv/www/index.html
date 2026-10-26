@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CVA6 Arty LEDs</title>
+<style>
+  :root { --bg:#0f1512; --card:#18211c; --line:#2b3a31; --text:#e3eee7; --dim:#8ea398;
+          --led:#3dff7a; --off:#24302a; --accent:#5ad18a; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font:16px/1.5 system-ui,sans-serif; display:flex; justify-content:center; padding:24px 16px; }
+  main { width:100%; max-width:520px; }
+  h1 { font-size:1.4rem; margin:0 0 2px; }
+  .sub { color:var(--dim); margin:0 0 20px; font-size:.9rem; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; margin-bottom:16px; }
+  .card h2 { font-size:.8rem; letter-spacing:.08em; text-transform:uppercase; color:var(--dim); margin:0 0 14px; }
+  .row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+  .led { border:0; background:none; color:var(--dim); cursor:pointer; font:inherit; font-size:.85rem; padding:0; }
+  .led i { display:block; width:46px; height:46px; margin:0 auto 6px; border-radius:50%;
+           background:var(--off); border:2px solid var(--line); transition:.15s; }
+  .led.on i { background:var(--led); border-color:var(--led); box-shadow:0 0 18px var(--led); }
+  .led:disabled { cursor:default; }
+  .sw { text-align:center; color:var(--dim); font-size:.85rem; }
+  .sw b { display:block; width:22px; height:44px; margin:0 auto 6px; border-radius:5px;
+          background:var(--off); border:2px solid var(--line); position:relative; }
+  .sw b::after { content:""; position:absolute; left:2px; right:2px; height:18px; bottom:2px;
+                 border-radius:3px; background:var(--dim); transition:.15s; }
+  .sw.on b::after { bottom:20px; background:var(--accent); }
+  .btns { display:flex; gap:10px; flex-wrap:wrap; }
+  button.b { background:var(--off); color:var(--text); border:1px solid var(--line);
+             border-radius:8px; padding:8px 14px; font:inherit; cursor:pointer; }
+  button.b.active { border-color:var(--accent); color:var(--accent); }
+  footer { color:var(--dim); font-size:.8rem; text-align:center; }
+  #err { color:#ff8a7a; }
+</style>
+</head>
+<body>
+<main>
+  <h1>CVA6 on Arty A7-100T</h1>
+  <p class="sub">Served by a RISC-V core on the FPGA, over its own Ethernet MAC.</p>
+
+  <section class="card">
+    <h2>LEDs (click to toggle)</h2>
+    <div class="row" id="leds"></div>
+  </section>
+
+  <section class="card">
+    <h2>Switches (live)</h2>
+    <div class="row" id="sws"></div>
+  </section>
+
+  <section class="card">
+    <div class="btns">
+      <button class="b" onclick="cmd('all=on')">All on</button>
+      <button class="b" onclick="cmd('all=off')">All off</button>
+      <button class="b" id="follow" onclick="cmd('follow=' + (state.follow ? 0 : 1))">LEDs follow switches</button>
+    </div>
+  </section>
+
+  <footer><span id="up">connecting…</span> <span id="err"></span></footer>
+</main>
+<script>
+  var state = { leds:0, switches:0, follow:0 }, busy = false;
+  var ledsEl = document.getElementById('leds'), swsEl = document.getElementById('sws');
+  for (var i = 0; i < 4; i++) {
+    ledsEl.insertAdjacentHTML('beforeend',
+      '<button class="led" onclick="cmd(\'toggle=' + i + '\')"><i></i>LD' + (i + 4) + '</button>');
+    swsEl.insertAdjacentHTML('beforeend', '<div class="sw"><b></b>SW' + i + '</div>');
+  }
+  function render() {
+    var l = ledsEl.children, s = swsEl.children;
+    for (var i = 0; i < 4; i++) {
+      l[i].classList.toggle('on', !!(state.leds >> i & 1));
+      l[i].disabled = !!state.follow;
+      s[i].classList.toggle('on', !!(state.switches >> i & 1));
+    }
+    document.getElementById('follow').classList.toggle('active', !!state.follow);
+    var u = state.uptime, m = Math.floor(u / 60);
+    document.getElementById('up').textContent =
+      'Board uptime ' + Math.floor(m / 60) + 'h ' + (m % 60) + 'm ' + (u % 60) + 's';
+  }
+  function cmd(q) {
+    if (busy) return;
+    busy = true;
+    fetch('/cgi-bin/led' + (q ? '?' + q : ''), { cache:'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (j) { state = j; document.getElementById('err').textContent = ''; render(); })
+      .catch(function () { document.getElementById('err').textContent = '(board not responding)'; })
+      .then(function () { busy = false; });
+  }
+  cmd('');
+  setInterval(function () { cmd(''); }, 1500);
+</script>
+</body>
+</html>

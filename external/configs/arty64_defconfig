@@ -34,3 +34,15 @@ BR2_ROOTFS_POST_BUILD_SCRIPT="$(BR2_EXTERNAL_ARTY_PATH)/board/arty64/post-build.
 BR2_LINUX_KERNEL_DTS_SUPPORT=y
 BR2_LINUX_KERNEL_CUSTOM_DTS_PATH="$(BR2_EXTERNAL_ARTY_PATH)/board/arty64/arty64.dts"
 BR2_LINUX_KERNEL_INTREE_DTS_NAME="arty64"
+
+# Network diagnostics (ethtool -d eth0 dumps PHY + MAC registers)
+BR2_PACKAGE_ETHTOOL=y
+
+# busybox ntpd (clock from the network) and httpd (LED web page)
+BR2_PACKAGE_BUSYBOX_CONFIG_FRAGMENT_FILES="$(BR2_EXTERNAL_ARTY_PATH)/board/busybox.fragment"
+
+# Shared rootfs overlay: S41ethernet, S50httpd and the LED web page
+BR2_ROOTFS_OVERLAY="$(BR2_EXTERNAL_ARTY_PATH)/board/common/rootfs-overlay"
+
+# CGI for the LED web page
+BR2_PACKAGE_ARTY_LED_CGI=y

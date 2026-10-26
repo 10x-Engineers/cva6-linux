@@ -1,0 +1,31 @@
+#!/bin/sh
+# eth0 on the lowRISC MAC + DP83848J PHY: static address, default route, DNS,
+# and the real time from NTP. Edit the values below to suit your network.
+ETH_IP=192.168.100.200/24
+ETH_GW=192.168.100.1
+ETH_DNS=8.8.8.8
+NTP_SERVER=pool.ntp.org
+# The MAC's reset value 23:01:00:89:07:02 has the multicast bit set, which
+# peers reject as a source address; use a locally administered one.
+ETH_MAC=02:00:00:00:00:01
+# Autoneg advertisement: 0x00f = 10/100, 0x003 = 10 Mb/s only. Use 0x003 with
+# the CoreChips SR9900 USB dongle: the PHY's 100 Mb/s receiver never locks to it
+# (fine at 100 Mb/s on a router/switch).
+ETH_ADVERTISE=0x00f
+
+case "$1" in
+  start)
+    modprobe lowrisc_100MHz || exit 1
+    ip link set eth0 address "$ETH_MAC"
+    ip link set eth0 up
+    ethtool -s eth0 advertise "$ETH_ADVERTISE"
+    ip addr add "$ETH_IP" dev eth0
+    ip route add default via "$ETH_GW"
+    echo "nameserver $ETH_DNS" > /etc/resolv.conf
+    # No RTC on the board: set the clock once the link is up.
+    (sleep 5; ntpd -n -q -p "$NTP_SERVER") >/dev/null 2>&1 &
+    ;;
+  stop)
+    ip link set eth0 down
+    ;;
+esac

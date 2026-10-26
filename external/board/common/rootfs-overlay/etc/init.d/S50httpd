@@ -1,0 +1,14 @@
+#!/bin/sh
+# LED/switch web page on port 80 (busybox httpd, CGI in /srv/www/cgi-bin).
+case "$1" in
+  start)
+    # GPIO channel 1 drives LD4..LD7: make it an output, LEDs off.
+    devmem 0x40000004 32 0
+    devmem 0x40000000 32 0
+    echo 0 > /tmp/leds
+    httpd -h /srv/www -p 80
+    ;;
+  stop)
+    killall httpd
+    ;;
+esac

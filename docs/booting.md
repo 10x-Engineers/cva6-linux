@@ -33,18 +33,51 @@ and a little longer for 64-bit (~11 MB).
 
 ## JTAG (fast path)
 
-OpenOCD (`openocd_arty_a7_100t_cva6.cfg`) uses the BSCANE2 USER1 TAP and halts
-the hart. Load and run:
+OpenOCD (`scripts/openocd_arty_a7_100t_cva6.cfg`) uses the BSCANE2 USER1 TAP
+and halts the hart. `scripts/boot_jtag.sh` loads the payload over system bus
+access (~50 s for 12 MB) and starts it at `0x80000000`. JTAG and the UART are
+separate FT2232 channels, so keep the console open in one terminal and boot from
+another.
 
-```gdb
-set architecture riscv:rv32          # riscv:rv64 for 64-bit
-target extended-remote :3333
-restore out/arty32-fw_payload.bin binary 0x80000000
-set $pc = 0x80000000
-set $a0 = 0
-set $a1 = 0
-continue
+Terminal 1, console (open it first and leave it open):
+
+```bash
+make console            # picocom -b 57600 /dev/ttyUSB5
 ```
+
+Terminal 2:
+
+```bash
+make jtag32             # loads the bitstream, then runs:
+                        # scripts/boot_jtag.sh out/arty32-fw_payload.bin
+```
+
+1. After the bitstream loads, the console prints `Hello World!` and
+   `Hit any key to enter update mode ..`. Don't press a key.
+2. `boot_jtag.sh` shows OpenOCD's output and
+   `>>> Uploading Linux ...`, then stays silent for ~50 s.
+3. `>>> Upload complete. Starting Linux` appears, OpenOCD closes and the script
+   prints `Done in N s`. On a failure it prints `FAILED` and exits non-zero
+   (OpenOCD's output is also in `/tmp/openocd-arty.log`).
+4. The console shows OpenSBI and the kernel log, then `arty32 login:` about
+   3 minutes later.
+
+`boot_jtag.sh` modes:
+
+| Command | Effect |
+|---|---|
+| `scripts/boot_jtag.sh <image>` | load, start Linux, close OpenOCD |
+| `scripts/boot_jtag.sh -k <image>` | load, start Linux, keep OpenOCD open: gdb on `:3333`, telnet on `:4444`, Ctrl+C closes |
+| `scripts/boot_jtag.sh` | no image: attach only (resumes the hart, so a running Linux carries on) |
+
+Only one program may read `/dev/ttyUSB5`: a second reader (another picocom, a
+`cat` logger) steals the output and the console looks dead.
+
+The script clears `ebreakm`/`ebreaks`/`ebreaku` first: OpenSBI probes for
+semihosting with an `ebreak`, and with OpenOCD's default `ebreakm=on` that
+halts the hart before OpenSBI prints anything. Don't add `verify_image`: without
+a work area it reads the whole image back over JTAG (5+ minutes) and then
+errors, which aborts the remaining commands.
 
 On the 32-bit target, avoid abstract register commands after some operations
 (the DM can report `abstractcs=...1002` busy); reset the DM with

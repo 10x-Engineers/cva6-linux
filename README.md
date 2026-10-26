@@ -4,9 +4,14 @@ Linux on the CVA6 RISC-V core / Digilent Arty A7-100T (32- and 64-bit), built
 with pinned Buildroot + OpenSBI and booted over UART or JTAG.
 
 ```bash
-make boot32      # rv32imac / ilp32 soft-float
+make boot32      # rv32imac / ilp32 soft-float, boot over UART
 make boot64      # rv64imac / lp64 soft-float
+make jtag32      # same, over JTAG in ~1 minute (console: make console)
 ```
+
+What you get: a Buildroot shell on the serial console, 100 Mb/s Ethernet with
+a static IP, the clock set by NTP, and a web page on the board that drives the
+LEDs and shows the switches.
 
 ## Documentation
 
@@ -15,6 +20,7 @@ make boot64      # rv64imac / lp64 soft-float
 | [docs/boards/arty_a7_100t.md](docs/boards/arty_a7_100t.md) | board clocks, memory, UART, bitstreams |
 | [docs/build.md](docs/build.md) | versions, build trees, kernel config, Ethernet patch |
 | [docs/booting.md](docs/booting.md) | UART update protocol, JTAG boot, XLEN matching |
+| [docs/networking.md](docs/networking.md) | Ethernet setup, LED web page, GPIO |
 | [docs/adding-a-board.md](docs/adding-a-board.md) | adding another CVA6 FPGA board |
 
 ## Hardware target
@@ -74,29 +80,26 @@ payload (4-byte size + raw image) at 57600, and stays attached as the console
 
 ## Boot over JTAG
 
-With OpenOCD running (`openocd_arty_a7_100t_cva6.cfg`):
+Much faster than UART: the payload goes straight into DDR over the debug
+module (~50 s), then Linux boots on the serial console. Keep a console open in
+another terminal (`make console`), then:
 
-```gdb
-set architecture riscv:rv32        # riscv:rv64 for 64-bit
-target extended-remote :3333
-restore out/arty32-fw_payload.bin binary 0x80000000
-set $pc = 0x80000000
-set $a0 = 0
-set $a1 = 0
-continue
+```bash
+make jtag32      # or make jtag64; or scripts/boot_jtag.sh out/arty32-fw_payload.bin
 ```
 
-## Ethernet
+`scripts/boot_jtag.sh -k <image>` keeps OpenOCD open afterwards for gdb
+(`:3333`) or telnet (`:4444`); with no image it only attaches. See
+[docs/booting.md](docs/booting.md).
 
-The lowRISC MAC driver is built as a module (`lowrisc_100MHz.ko`) and is **not**
-loaded by default — the current bitstream has no MAC at `0x30000000`. Once a
-bitstream with the MAC/pins is loaded:
+## Ethernet and the LED web page
 
-```sh
-insmod /lib/modules/6.6.84/kernel/drivers/net/ethernet/lowrisc/lowrisc_100MHz.ko
-ifconfig eth0 up
-udhcpc -i eth0
-```
+eth0 comes up at boot as `192.168.100.200/24` (gateway `192.168.100.1`, DNS
+`8.8.8.8`), at 10/100 Mb/s on the TI DP83848J PHY. Edit
+`external/board/common/rootfs-overlay/etc/init.d/S41ethernet` for your network.
+
+Open `http://192.168.100.200` for a page that toggles LD4–LD7 and shows
+SW0–SW3 live. Details and the GPIO registers: [docs/networking.md](docs/networking.md).
 
 ## License
 
