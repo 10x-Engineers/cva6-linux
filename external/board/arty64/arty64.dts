@@ -84,15 +84,14 @@
       interrupts = <1>;
     };
 
-    /* lowRISC 100 MHz Ethernet MAC (0x30000000).
-     * Currently not instantiated in the Arty bitstream; the driver is built
-     * as a module and is only loaded once the MAC is present. */
+    /* lowRISC Ethernet MAC (0x30000000) on the DP83848J MII PHY (address 1),
+     * PLIC source 3. Loaded at boot by /etc/init.d/S41ethernet. */
     eth: ethernet@30000000 {
       compatible = "lowrisc-eth";
       device_type = "network";
       reg = <0x0 0x30000000 0x0 0x8000>;
       interrupt-parent = <&PLIC0>;
-      interrupts = <3 0>;
+      interrupts = <3>;
       local-mac-address = [02 00 00 00 00 01];
     };
   };
